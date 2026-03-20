@@ -14,19 +14,17 @@ def chat_with_ollama(user_input):
         {
             'role': 'system',
             'content': (
-                "Eres un asistente con AMNESIA TOTAL sobre ciencia y tecnología.\n"
-                "TU REGLA ABSOLUTA: No puedes responder NADA sobre temas técnicos (como física o computación) "
-                "usando tu propia memoria. Estás OBLIGADO a usar 'consultar_documento' para CUALQUIER pregunta técnica.\n\n"
-                "Si el usuario pregunta algo técnico, tu ÚNICA respuesta permitida es llamar a la herramienta.\n"
-                "Solo después de leer el documento podrás hablar con el usuario."
+                "Eres un experto en computación cuántica que consulta manuales técnicos.\n"
+                "REGLA: Si te preguntan algo técnico, usa 'consultar_documento'.\n"
+                "Una vez que tengas el contenido, explica el concepto de forma clara basándote en el texto.\n"
+                "NO respondas con JSON, responde con lenguaje natural."
             )
         },
         {'role': 'user', 'content': user_input}
     ]
     
-    for _ in range(5):
+    for i in range(5):
         try:
-            # Forzamos a Ollama a considerar las herramientas en cada paso
             response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
         except Exception as e:
             raise Exception(f"No se pudo conectar con Ollama: {e}")
@@ -40,39 +38,37 @@ def chat_with_ollama(user_input):
             args = tool_call.function.arguments
             messages.append(response.message)
         else:
-            # 2. Fallback robusto con Regex (Llama 3.2 a veces escribe el JSON directamente)
+            # 2. Fallback robusto con Regex
             content = response.message.content.strip()
-            if '{' in content:
+            if '{' in content and '"name"' in content:
                 try:
                     name_match = re.search(r'"name":\s*"([^"]+)"', content)
                     if name_match:
                         name = name_match.group(1)
                         file_match = re.search(r'"nombre_archivo":\s*"([^"]+)"', content)
-                        # Si no encuentra 'nombre_archivo', intentamos adivinarlo del contexto técnico
-                        nombre_archivo = file_match.group(1) if file_match else "computacion_cuantica"
-                        args = {'nombre_archivo': nombre_archivo}
+                        args = {'nombre_archivo': file_match.group(1) if file_match else "computacion_cuantica"}
                         
                         fake_message = {
                             'role': 'assistant',
-                            'content': f"Consultando base de datos para: {name}...",
+                            'content': content,
                             'tool_calls': [{'function': {'name': name, 'arguments': args}}]
                         }
                         messages.append(fake_message)
-                except:
-                    pass
+                except: pass
+            
+            # Si no hay nombre de herramienta detectado, es la respuesta final
+            if not name:
+                # Limpiamos posibles residuos de JSON que el modelo a veces deja al final
+                final_answer = re.sub(r'\{.*"name":.*\}', '', response.message.content, flags=re.DOTALL).strip()
+                if not final_answer and i > 0:
+                    # Si el modelo se quedó callado después de la herramienta, le pedimos que hable
+                    messages.append({'role': 'user', 'content': "Por favor, resume la información que encontraste."})
+                    continue
+                return final_answer
 
         if name:
             print(f"\n[Consultando base de conocimientos: {name}]")
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
-        else:
-            # Si no hay llamada a herramienta y es el primer turno, forzamos al modelo
-            if len(messages) <= 2:
-                 # El modelo intentó responder sin herramienta, le recordamos su amnesia
-                 messages.append({'role': 'system', 'content': "ERROR: No usaste la herramienta. Recuerda que no sabes nada, DEBES usar 'consultar_documento'."})
-                 continue
-            
-            # Respuesta final limpia de JSON
-            return re.sub(r'\{.*\}', '', response.message.content).strip()
             
     return "Se alcanzó el límite de pasos sin una respuesta final."
