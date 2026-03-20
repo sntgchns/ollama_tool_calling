@@ -11,24 +11,31 @@ MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 def chat_with_ollama(user_input):
     messages = [
         {
-            'role': 'system',
+            'role': 'system', 
             'content': (
-                "Eres un asistente especializado en extraer información de una base de conocimientos técnica.\n"
-                "TU UNICA FUENTE DE VERDAD: La herramienta 'consultar_documento'.\n"
-                "REGLA: Si el usuario pregunta algo técnico, usa la herramienta. NO respondas con tus conocimientos previos.\n"
-                "Una vez que recibas el contenido del documento, resume la información para responder al usuario."
+                "Eres un Agente Experto de Soporte Técnico.\n"
+                "TU MISIÓN: Solucionar problemas del servidor siguiendo un protocolo ESTRICTO.\n\n"
+                "PASOS OBLIGATORIOS (UNO POR TURNO):\n"
+                "1. Ejecuta 'verificar_estado_servidor' para obtener el código de error.\n"
+                "2. Ejecuta 'consultar_documento' con nombre_archivo='guia_infraestructura' para buscar qué servicio corresponde al código de error.\n"
+                "3. Ejecuta 'ejecutar_reinicio_servicio' con el nombre del servicio que encontraste.\n\n"
+                "REGLAS CRÍTICAS:\n"
+                "- NO adivines el error. DEBES verificarlo primero.\n"
+                "- NO asumas el servicio. DEBES consultarlo en el manual.\n"
+                "- NO des una respuesta final hasta que hayas completado los 3 pasos.\n"
+                "- Si respondes con un JSON, asegúrate de que sea una llamada a herramienta válida."
             )
-        },
-        {'role': 'user', 'content': user_input}
+        }
     ]
+    messages.append({'role': 'user', 'content': user_input})
     
-    for _ in range(5):
+    for _ in range(10):
         try:
             response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
         except Exception as e:
-            raise Exception(f"No se pudo conectar con Ollama: {e}")
+            raise Exception(f"Error conectando con Ollama: {e}")
 
-        name, args, tool_call_id = None, None, None
+        name, args = None, None
         
         # 1. Intentar obtener llamada formal
         if response.message.tool_calls:
@@ -41,7 +48,6 @@ def chat_with_ollama(user_input):
             try:
                 content = response.message.content.strip()
                 if '{' in content:
-                    # Extraer JSON si hay texto alrededor
                     start = content.find('{')
                     end = content.rfind('}') + 1
                     tool_data = json.loads(content[start:end])
@@ -51,10 +57,10 @@ def chat_with_ollama(user_input):
                         try: args = json.loads(args['object'])
                         except: pass
                     
-                    # Truco: Inyectamos una llamada formal en la historia para que Ollama no se pierda
+                    # Inyectamos llamada formal para consistencia de la historia
                     fake_message = {
                         'role': 'assistant',
-                        'content': '',
+                        'content': content,
                         'tool_calls': [{'function': {'name': name, 'arguments': args}}]
                     }
                     messages.append(fake_message)
@@ -64,11 +70,10 @@ def chat_with_ollama(user_input):
                 return response.message.content
 
         if name:
-            print(f"\n[Consultando base de conocimientos: {name}]")
+            print(f"\n[Ejecutando herramienta: {name}]")
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
-            # Continuamos el loop para que Ollama procese el resultado
         else:
             return response.message.content
-            
-    return "Se alcanzó el límite de pasos sin una respuesta final."
+
+    return "Error: Se alcanzó el límite de pasos del agente sin obtener una respuesta final."
