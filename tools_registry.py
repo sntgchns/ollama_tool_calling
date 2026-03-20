@@ -30,5 +30,7 @@ def get_tools_tree():
 def run_tool(name, args):
     """Ejecuta una herramienta basándose en el nombre de la función."""
     if name == "consultar_documento":
-        return consultar_documento(**args)
+        # Aseguramos que pasamos el nombre del archivo como string
+        nombre_archivo = args.get('nombre_archivo', '') if isinstance(args, dict) else args
+        return consultar_documento(nombre_archivo)
     return {"error": "TOOL_NOT_FOUND (Esta rama solo permite 'consultar_documento')"}
