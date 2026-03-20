@@ -9,21 +9,11 @@ load_dotenv()
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 
-def chat_with_ollama(user_input):
-    messages = [
-        {
-            'role': 'system',
-            'content': (
-                "Eres un agente de búsqueda que NO sabe nada de computación cuántica.\n"
-                "TU PROTOCOLO:\n"
-                "1. SIEMPRE debes llamar a 'consultar_documento' antes de responder.\n"
-                "2. Está PROHIBIDO responder con tu memoria. Usa SOLO el contenido del archivo.\n"
-                "3. Tu primera respuesta técnica DEBE ser una llamada a la herramienta."
-            )
-        },
-        {'role': 'user', 'content': user_input}
-    ]
-    
+def chat_with_ollama(messages):
+    """
+    Orquestador con soporte para memoria. 
+    Recibe la lista completa de mensajes de la conversación.
+    """
     for i in range(5):
         try:
             response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
@@ -48,20 +38,22 @@ def chat_with_ollama(user_input):
                         name = name_match.group(1)
                         file_match = re.search(r'"nombre_archivo":\s*"([^"]+)"', content)
                         args = {'nombre_archivo': file_match.group(1) if file_match else "computacion_cuantica"}
-                        messages.append({'role': 'assistant', 'content': content, 'tool_calls': [{'function': {'name': name, 'arguments': args}}]})
+                        
+                        msg = {'role': 'assistant', 'content': content, 'tool_calls': [{'function': {'name': name, 'arguments': args}}]}
+                        messages.append(msg)
                 except: pass
             
-            # 3. Si no hay llamada y es el inicio, forzamos al modelo
-            if not name and i == 0:
-                messages.append({'role': 'system', 'content': "ERROR: No has consultado el documento. Llama a 'consultar_documento' ahora."})
-                continue
+            # 3. Si no hay llamada y es el primer turno del loop (i=0), forzamos si es necesario
+            # Nota: En modo memoria, i=0 no significa necesariamente el inicio de la charla
             
             # 4. Respuesta final (limpia de JSON)
             if not name:
-                return re.sub(r'\{.*\}', '', response.message.content, flags=re.DOTALL).strip()
+                final_answer = re.sub(r'\{.*\}', '', response.message.content, flags=re.DOTALL).strip()
+                # Añadimos la respuesta final a la historia
+                messages.append({'role': 'assistant', 'content': final_answer})
+                return final_answer
 
         if name:
-            # AVISO VISUAL OBLIGATORIO
             print(f"\n[SISTEMA] Consultando herramienta: {name}...")
             result = run_tool(name, args)
             

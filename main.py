@@ -8,6 +8,20 @@ def main():
     print("\nPrueba preguntando: '¿Qué es la descoherencia cuántica?'")
     print("Escribe 'salir' para terminar.\n")
     
+    # Memoria de la conversación
+    historial = [
+        {
+            'role': 'system',
+            'content': (
+                "Eres un agente de búsqueda que NO sabe nada de computación cuántica.\n"
+                "TU PROTOCOLO:\n"
+                "1. SIEMPRE debes llamar a 'consultar_documento' antes de responder temas técnicos.\n"
+                "2. Está PROHIBIDO responder con tu memoria. Usa SOLO el contenido del archivo.\n"
+                "3. Una vez que tengas la información, mantenla en memoria para preguntas de seguimiento."
+            )
+        }
+    ]
+    
     while True:
         try:
             user_input = input("Usuario: ")
@@ -21,9 +35,13 @@ def main():
         if not user_input.strip():
             continue
 
+        # Añadimos la pregunta del usuario al historial
+        historial.append({'role': 'user', 'content': user_input})
+
         try:
             start_time = time.time()
-            response = chat_with_ollama(user_input)
+            # Pasamos el historial completo al orquestador
+            response = chat_with_ollama(historial)
             end_time = time.time()
             
             print(f"Ollama: {response}")
