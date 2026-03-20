@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
+MODEL = os.getenv("OLLAMA_MODEL", "qwen3:8b")
 
 def chat_with_ollama(messages):
     """
