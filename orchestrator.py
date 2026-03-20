@@ -24,7 +24,7 @@ def chat_with_ollama(user_input):
                 "- NO adivines el error. DEBES verificarlo primero.\n"
                 "- NO asumas el servicio. DEBES consultarlo en el manual.\n"
                 "- NO des una respuesta final hasta que hayas completado los 3 pasos.\n"
-                "- Si necesitas usar una herramienta, envía solo el JSON formal."
+                "- IMPORTANTE: Envía la respuesta final en lenguaje natural, sin bloques JSON."
             )
         }
     ]
@@ -49,7 +49,7 @@ def chat_with_ollama(user_input):
             try:
                 content = response.message.content.strip()
                 if '{' in content:
-                    # Intentar extraer el nombre de la función con Regex (Raw strings para evitar SyntaxWarning)
+                    # Intentar extraer el nombre de la función con Regex (Raw strings)
                     name_match = re.search(r'"name":\s*"([^"]+)"', content)
                     if name_match:
                         name = name_match.group(1)
@@ -69,7 +69,8 @@ def chat_with_ollama(user_input):
                         }
                         messages.append(fake_message)
                 else:
-                    return response.message.content
+                    # Si no hay JSON, es respuesta final (limpiamos posibles residuos)
+                    return re.sub(r'\{.*\}', '', response.message.content).strip()
             except:
                 return response.message.content
 
@@ -78,6 +79,7 @@ def chat_with_ollama(user_input):
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
         else:
-            return response.message.content
+            # Respuesta final limpia de JSON
+            return re.sub(r'\{.*\}', '', response.message.content).strip()
 
     return "Error: Se alcanzó el límite de pasos del agente sin obtener una respuesta final."
