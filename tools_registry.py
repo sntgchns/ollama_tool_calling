@@ -6,11 +6,27 @@ from tools.geometria import GeometriaTools
 from tools.conversor import ConversorTools
 from tools.database import DatabaseTools
 
-# Instanciar clases de herramientas una vez para mejorar eficiencia
+# Instanciar clases de herramientas
 ARITMETICA = AritmeticaTools()
 GEOMETRIA = GeometriaTools()
 CONVERSOR = ConversorTools()
 DATABASE = DatabaseTools()
+
+# Mapeo directo de herramientas para mayor eficiencia
+TOOL_MAPPING = {
+    "sumar": ARITMETICA.sumar,
+    "restar": ARITMETICA.restar,
+    "multiplicar": ARITMETICA.multiplicar,
+    "dividir": ARITMETICA.dividir,
+    "potencia": ARITMETICA.potencia,
+    "raiz_cuadrada": ARITMETICA.raiz_cuadrada,
+    "convertir_base": CONVERSOR.convertir_base,
+    "area_cuadrado": GEOMETRIA.area_cuadrado,
+    "area_rectangulo": GEOMETRIA.area_rectangulo,
+    "area_triangulo": GEOMETRIA.area_triangulo,
+    "area_circulo": GEOMETRIA.area_circulo,
+    "consultar_db": DATABASE.consultar_db,
+}
 
 # Definición de herramientas para Ollama
 TOOLS = [
@@ -39,12 +55,9 @@ def get_tools_tree():
 
 def run_tool(name, args):
     """Ejecuta una herramienta basándose en el nombre de la función."""
-    instancias = [ARITMETICA, GEOMETRIA, CONVERSOR, DATABASE]
-    for instancia in instancias:
-        if hasattr(instancia, name):
-            try:
-                method = getattr(instancia, name)
-                return method(**args)
-            except Exception as e:
-                return {"error": f"Error ejecutando {name}: {str(e)}"}
-    return {"error": "TOOL_NOT_FOUND"}
+    if name in TOOL_MAPPING:
+        try:
+            return TOOL_MAPPING[name](**args)
+        except Exception as e:
+            return {"error": f"Error ejecutando {name}: {str(e)}"}
+    return {"error": f"Herramienta '{name}' no encontrada"}
