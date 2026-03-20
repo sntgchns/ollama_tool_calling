@@ -9,27 +9,10 @@ load_dotenv()
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 
-def chat_with_ollama(user_input):
-    messages = [
-        {
-            'role': 'system', 
-            'content': (
-                "Eres un Agente Experto de Soporte Técnico.\n"
-                "TU MISIÓN: Solucionar problemas del servidor siguiendo un protocolo ESTRICTO.\n\n"
-                "PASOS OBLIGATORIOS (UNO POR TURNO):\n"
-                "1. Ejecuta 'verificar_estado_servidor' para obtener el código de error.\n"
-                "2. Ejecuta 'consultar_documento' con nombre_archivo='guia_infraestructura' para buscar qué servicio corresponde al código de error.\n"
-                "3. Ejecuta 'ejecutar_reinicio_servicio' con el nombre del servicio que encontraste.\n\n"
-                "REGLAS CRÍTICAS:\n"
-                "- NO adivines el error. DEBES verificarlo primero.\n"
-                "- NO asumas el servicio. DEBES consultarlo en el manual.\n"
-                "- NO des una respuesta final hasta que hayas completado los 3 pasos.\n"
-                "- IMPORTANTE: Envía la respuesta final en lenguaje natural, sin bloques JSON."
-            )
-        }
-    ]
-    messages.append({'role': 'user', 'content': user_input})
-    
+def chat_with_ollama(messages):
+    """
+    Orquestador experto con soporte para memoria.
+    """
     for _ in range(10):
         try:
             response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
@@ -69,9 +52,11 @@ def chat_with_ollama(user_input):
                         }
                         messages.append(fake_message)
                 else:
-                    # Si no hay JSON, es respuesta final (limpiamos posibles residuos)
-                    return re.sub(r'\{.*\}', '', response.message.content).strip()
+                    final_answer = re.sub(r'\{.*\}', '', response.message.content, flags=re.DOTALL).strip()
+                    messages.append({'role': 'assistant', 'content': final_answer})
+                    return final_answer
             except:
+                messages.append(response.message)
                 return response.message.content
 
         if name:
@@ -79,7 +64,8 @@ def chat_with_ollama(user_input):
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
         else:
-            # Respuesta final limpia de JSON
-            return re.sub(r'\{.*\}', '', response.message.content).strip()
+            final_answer = re.sub(r'\{.*\}', '', response.message.content, flags=re.DOTALL).strip()
+            messages.append({'role': 'assistant', 'content': final_answer})
+            return final_answer
 
     return "Error: Se alcanzó el límite de pasos del agente sin obtener una respuesta final."
