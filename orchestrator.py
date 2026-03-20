@@ -73,7 +73,7 @@ def chat_with_ollama(user_input):
         if name:
             print(f"\n[Ejecutando herramienta: {name}]")
             result = run_tool(name, args)
-            messages.append({'role': 'tool', 'content': str(result), 'name': name})
+            messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
             # El loop continúa para que el modelo genere la respuesta final con el resultado
         else:
             # Respuesta final limpia de JSON
