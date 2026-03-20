@@ -1,6 +1,7 @@
 import ollama
 import json
 import os
+import re
 from dotenv import load_dotenv
 from tools_registry import TOOLS, run_tool
 
@@ -28,7 +29,7 @@ def chat_with_ollama(user_input):
         except Exception as e:
             raise Exception(f"No se pudo conectar con Ollama: {e}")
 
-        name, args, tool_call_id = None, None, None
+        name, args = None, None
         
         # 1. Intentar obtener llamada formal
         if response.message.tool_calls:
@@ -37,27 +38,26 @@ def chat_with_ollama(user_input):
             args = tool_call.function.arguments
             messages.append(response.message)
         else:
-            # 2. Fallback para JSON en contenido
+            # 2. Fallback para JSON en contenido (Robusto con Regex)
             try:
                 content = response.message.content.strip()
                 if '{' in content:
-                    # Extraer JSON si hay texto alrededor
-                    start = content.find('{')
-                    end = content.rfind('}') + 1
-                    tool_data = json.loads(content[start:end])
-                    name = tool_data.get('name')
-                    args = tool_data.get('parameters', tool_data.get('arguments', {}))
-                    if isinstance(args, dict) and 'object' in args:
-                        try: args = json.loads(args['object'])
-                        except: pass
+                    name_match = re.search(r'"name":\s*"([^"]+)"', content)
+                    if name_match:
+                        name = name_match.group(1)
+                        # Búsqueda de argumentos
+                        if r'"nombre_archivo":\s*"([^"]+)"' in content:
+                            args = {'nombre_archivo': re.search(r'"nombre_archivo":\s*"([^"]+)"', content).group(1)}
+                        else:
+                            args = {}
                     
-                    # Truco: Inyectamos una llamada formal en la historia para que Ollama no se pierda
-                    fake_message = {
-                        'role': 'assistant',
-                        'content': '',
-                        'tool_calls': [{'function': {'name': name, 'arguments': args}}]
-                    }
-                    messages.append(fake_message)
+                    if name:
+                        fake_message = {
+                            'role': 'assistant',
+                            'content': f"Consultando {name}...",
+                            'tool_calls': [{'function': {'name': name, 'arguments': args}}]
+                        }
+                        messages.append(fake_message)
                 else:
                     return response.message.content
             except:
@@ -67,7 +67,6 @@ def chat_with_ollama(user_input):
             print(f"\n[Consultando base de conocimientos: {name}]")
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
-            # Continuamos el loop para que Ollama procese el resultado
         else:
             return response.message.content
             
