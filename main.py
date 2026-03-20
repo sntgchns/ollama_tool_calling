@@ -8,10 +8,21 @@ def main():
     print("Escribe 'salir' para terminar.\n")
     
     while True:
-        user_input = input("Usuario: ")
+        try:
+            user_input = input("Usuario: ")
+        except (EOFError, KeyboardInterrupt):
+            print("\nSaliendo...")
+            break
+
         if user_input.lower() in ["salir", "exit", "quit"]: break
+        
+        if not user_input.strip():
+            continue
+
         try:
             print(f"Ollama: {chat_with_ollama(user_input)}\n")
-        except Exception as e: print(f"Error: {e}\n")
+        except Exception as e:
+            print(f"Error en la comunicación con Ollama: {e}\n")
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
