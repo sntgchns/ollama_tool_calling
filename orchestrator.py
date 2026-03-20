@@ -9,20 +9,10 @@ load_dotenv()
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 
-def chat_with_ollama(user_input):
-    messages = [
-        {
-            'role': 'system', 
-            'content': (
-                "Eres un asistente matemático experto.\n"
-                "REGLA DE ORO: Si usas una herramienta, DEBES incluir los números en el JSON.\n"
-                "EJEMPLO: {\"name\": \"raiz_cuadrada\", \"parameters\": {\"x\": 83}}\n"
-                "REGLA 2: El resultado de la herramienta es la VERDAD ABSOLUTA. No lo calcules tú mismo."
-            )
-        },
-        {'role': 'user', 'content': user_input}
-    ]
-    
+def chat_with_ollama(messages):
+    """
+    Orquestador matemático con soporte para memoria.
+    """
     for _ in range(5):
         try:
             response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
@@ -43,10 +33,9 @@ def chat_with_ollama(user_input):
                     name_match = re.search(r'"name":\s*"([^"]+)"', content)
                     if name_match:
                         name = name_match.group(1)
-                        # Búsqueda agresiva: si no hay números en el JSON, buscamos en todo el texto del mensaje
+                        # Búsqueda agresiva de números
                         nums = re.findall(r'(\d+\.?\d*)', content)
                         if nums:
-                            # Usamos el último número encontrado como argumento probable
                             args = {'x': float(nums[-1]), 'a': float(nums[0])}
                         else:
                             args = {}
@@ -59,16 +48,20 @@ def chat_with_ollama(user_input):
                         }
                         messages.append(fake_message)
                 else:
-                    return re.sub(r'\{.*\}', '', response.message.content).strip()
+                    final_answer = re.sub(r'\{.*\}', '', response.message.content, flags=re.DOTALL).strip()
+                    messages.append({'role': 'assistant', 'content': final_answer})
+                    return final_answer
             except:
+                messages.append(response.message)
                 return response.message.content
 
         if name:
-            # DEBUG para el usuario (puedes quitarlo luego)
             print(f"\n[Ejecutando herramienta: {name} con argumentos: {args}]")
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
         else:
-            return re.sub(r'\{.*\}', '', response.message.content).strip()
+            final_answer = re.sub(r'\{.*\}', '', response.message.content, flags=re.DOTALL).strip()
+            messages.append({'role': 'assistant', 'content': final_answer})
+            return final_answer
 
     return "Se alcanzó el límite de pasos sin una respuesta final."
