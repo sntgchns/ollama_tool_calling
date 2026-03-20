@@ -1,5 +1,10 @@
 import os
-def consultar_documento(nombre_archivo: str):
+def consultar_documento(nombre_archivo):
+    # Protección extra: si recibimos un diccionario por error de parsing del modelo
+    if isinstance(nombre_archivo, dict):
+        nombre_archivo = nombre_archivo.get('nombre_archivo', str(nombre_archivo))
+    
+    nombre_archivo = str(nombre_archivo) # Aseguramos string
     base_dir = 'conocimiento'
     if not nombre_archivo.endswith('.md'): nombre_archivo += '.md'
     safe_path = os.path.join(base_dir, os.path.basename(nombre_archivo))

@@ -29,8 +29,24 @@ def get_tools_tree():
 
 def run_tool(name, args):
     """Ejecuta una herramienta basándose en el nombre de la función."""
-    if name == "consultar_documento":
-        # Aseguramos que pasamos el nombre del archivo como string
-        nombre_archivo = args.get('nombre_archivo', '') if isinstance(args, dict) else args
+    # Normalizamos el nombre (Llama 3.2 a veces omite el guion bajo)
+    name_normalized = name.replace("_", "").lower()
+    
+    if name_normalized == "consultardocumento":
+        # Búsqueda agresiva de nombre_archivo
+        nombre_archivo = ""
+        if isinstance(args, dict):
+            # Intentar varias claves posibles que el modelo podría inventar
+            for key in ['nombre_archivo', 'archivo', 'doc', 'documento']:
+                if key in args:
+                    nombre_archivo = args[key]
+                    break
+            # Si sigue vacío pero hay un solo valor en el dict, lo tomamos
+            if not nombre_archivo and len(args) == 1:
+                nombre_archivo = list(args.values())[0]
+        else:
+            nombre_archivo = args
+            
         return consultar_documento(nombre_archivo)
-    return {"error": "TOOL_NOT_FOUND (Esta rama solo permite 'consultar_documento')"}
+    
+    return {"error": f"Herramienta '{name}' no encontrada"}
