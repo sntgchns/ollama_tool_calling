@@ -15,54 +15,60 @@ def chat_with_ollama(user_input):
             'content': (
                 "Eres un asistente especializado en extraer información de una base de conocimientos técnica.\n"
                 "TU UNICA FUENTE DE VERDAD: La herramienta 'consultar_documento'.\n"
-                "REGLA DE ORO: Si el usuario pregunta sobre conceptos científicos o tecnológicos "
-                "(como computación cuántica), utiliza SIEMPRE la herramienta 'consultar_documento' de forma formal.\n"
-                "NO expliques que vas a usar una herramienta. NO respondas con tus propios conocimientos.\n"
-                "SIMPLEMENTE LLAMA A LA HERRAMIENTA."
+                "REGLA: Si el usuario pregunta algo técnico, usa la herramienta. NO respondas con tus conocimientos previos.\n"
+                "Una vez que recibas el contenido del documento, resume la información para responder al usuario."
             )
         },
         {'role': 'user', 'content': user_input}
     ]
     
-    try:
-        response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
-    except Exception as e:
-        raise Exception(f"No se pudo conectar con Ollama (Modelo: {MODEL}). Error: {e}")
-
-    if response.message.tool_calls:
-        tool_call = response.message.tool_calls[0]
-        name = tool_call.function.name
-        args = tool_call.function.arguments
-    else:
-        # Fallback para modelos que responden con JSON en el contenido
+    for _ in range(5):
         try:
-            content = response.message.content.strip()
-            # Si el contenido empieza con '{', intentamos parsearlo
-            if content.startswith('{'):
-                tool_data = json.loads(content)
-                name = tool_data.get('name')
-                args = tool_data.get('parameters', tool_data.get('arguments', {}))
-                # Algunos modelos anidan los argumentos en 'object'
-                if isinstance(args, dict) and 'object' in args:
-                    try:
-                        args = json.loads(args['object'])
-                    except:
-                        pass
-            else:
-                return response.message.content
-        except:
-            return response.message.content
-
-    if name:
-        messages.append(response.message)
-        print(f"\n[Consultando base de conocimientos: {name}]")
-        result = run_tool(name, args)
-        messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
-        
-        try:
-            final_response = ollama.chat(model=MODEL, messages=messages)
-            return final_response.message.content
+            response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
         except Exception as e:
-            raise Exception(f"Error en la respuesta final de Ollama: {e}")
-    
-    return response.message.content
+            raise Exception(f"No se pudo conectar con Ollama: {e}")
+
+        name, args, tool_call_id = None, None, None
+        
+        # 1. Intentar obtener llamada formal
+        if response.message.tool_calls:
+            tool_call = response.message.tool_calls[0]
+            name = tool_call.function.name
+            args = tool_call.function.arguments
+            messages.append(response.message)
+        else:
+            # 2. Fallback para JSON en contenido
+            try:
+                content = response.message.content.strip()
+                if '{' in content:
+                    # Extraer JSON si hay texto alrededor
+                    start = content.find('{')
+                    end = content.rfind('}') + 1
+                    tool_data = json.loads(content[start:end])
+                    name = tool_data.get('name')
+                    args = tool_data.get('parameters', tool_data.get('arguments', {}))
+                    if isinstance(args, dict) and 'object' in args:
+                        try: args = json.loads(args['object'])
+                        except: pass
+                    
+                    # Truco: Inyectamos una llamada formal en la historia para que Ollama no se pierda
+                    fake_message = {
+                        'role': 'assistant',
+                        'content': '',
+                        'tool_calls': [{'function': {'name': name, 'arguments': args}}]
+                    }
+                    messages.append(fake_message)
+                else:
+                    return response.message.content
+            except:
+                return response.message.content
+
+        if name:
+            print(f"\n[Consultando base de conocimientos: {name}]")
+            result = run_tool(name, args)
+            messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
+            # Continuamos el loop para que Ollama procese el resultado
+        else:
+            return response.message.content
+            
+    return "Se alcanzó el límite de pasos sin una respuesta final."
