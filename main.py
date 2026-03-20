@@ -10,6 +10,9 @@ def main():
     print("Prueba preguntando cualquier cosa. El modelo responderá sin usar herramientas externas.")
     print("Escribe 'salir' para terminar.\n")
     
+    # Memoria de la conversación
+    historial = []
+    
     while True:
         try:
             user_input = input("Usuario: ")
@@ -23,10 +26,17 @@ def main():
         if not user_input.strip():
             continue
 
+        # Añadimos al historial
+        historial.append({'role': 'user', 'content': user_input})
+
         try:
             start_time = time.time()
-            response = chat_with_ollama(user_input)
+            # Pasamos el historial completo
+            response = chat_with_ollama(historial)
             end_time = time.time()
+            
+            # Añadimos respuesta al historial para que el modelo la recuerde
+            historial.append({'role': 'assistant', 'content': response})
             
             print(f"Ollama: {response}")
             print(f"Tiempo de respuesta: {end_time - start_time:.2f} segundos\n")

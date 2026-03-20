@@ -6,9 +6,11 @@ load_dotenv()
 
 MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 
-def chat_with_ollama(user_input):
-    messages = [{'role': 'user', 'content': user_input}]
-    
+def chat_with_ollama(messages):
+    """
+    Orquestador simple con soporte para memoria.
+    Recibe la lista completa de mensajes.
+    """
     try:
         # Llamada simple a Ollama sin herramientas
         response = ollama.chat(
@@ -17,4 +19,4 @@ def chat_with_ollama(user_input):
         )
         return response.message.content
     except Exception as e:
-        raise Exception(f"No se pudo conectar con Ollama (Modelo: {MODEL}). Asegúrate de que el servidor esté corriendo. Error: {e}")
+        raise Exception(f"No se pudo conectar con Ollama (Modelo: {MODEL}). Error: {e}")
