@@ -14,11 +14,10 @@ def chat_with_ollama(user_input):
         {
             'role': 'system', 
             'content': (
-                "Eres un asistente matemático y de base de datos experto.\n"
-                "PASOS:\n"
-                "1. Si el usuario pide un cálculo o consulta, usa la herramienta adecuada.\n"
-                "2. Recibe el resultado y úsalo para responder de forma natural.\n"
-                "REGLA: NO inventes resultados. Usa siempre las herramientas si están disponibles."
+                "Eres un asistente matemático experto.\n"
+                "REGLA DE ORO: Si usas una herramienta, DEBES incluir los números en el JSON.\n"
+                "EJEMPLO: {\"name\": \"raiz_cuadrada\", \"parameters\": {\"x\": 83}}\n"
+                "REGLA 2: El resultado de la herramienta es la VERDAD ABSOLUTA. No lo calcules tú mismo."
             )
         },
         {'role': 'user', 'content': user_input}
@@ -32,31 +31,27 @@ def chat_with_ollama(user_input):
 
         name, args = None, None
         
-        # 1. Intentar obtener llamada formal
         if response.message.tool_calls:
             tool_call = response.message.tool_calls[0]
             name = tool_call.function.name
             args = tool_call.function.arguments
             messages.append(response.message)
         else:
-            # 2. Fallback robusto con Regex para capturar JSON "sucio"
             try:
                 content = response.message.content.strip()
                 if '{' in content:
-                    # Extraer el nombre de la función con Regex (Raw strings)
                     name_match = re.search(r'"name":\s*"([^"]+)"', content)
                     if name_match:
                         name = name_match.group(1)
-                        # Intentamos capturar números en el JSON para los argumentos
-                        nums = re.findall(r'"\w+":\s*([\d\.]+)', content)
+                        # Búsqueda agresiva: si no hay números en el JSON, buscamos en todo el texto del mensaje
+                        nums = re.findall(r'(\d+\.?\d*)', content)
                         if nums:
-                            # Creamos un dict genérico con los números encontrados
-                            args = {f"arg{i}": float(v) for i, v in enumerate(nums)}
+                            # Usamos el último número encontrado como argumento probable
+                            args = {'x': float(nums[-1]), 'a': float(nums[0])}
                         else:
                             args = {}
                     
                     if name:
-                        # Inyectamos mensaje formal para mantener la coherencia de la historia
                         fake_message = {
                             'role': 'assistant',
                             'content': f"Calculando {name}...",
@@ -64,19 +59,16 @@ def chat_with_ollama(user_input):
                         }
                         messages.append(fake_message)
                 else:
-                    # Si no hay JSON, es la respuesta final. Limpiamos posibles residuos.
-                    final_text = re.sub(r'\{.*\}', '', response.message.content).strip()
-                    return final_text
+                    return re.sub(r'\{.*\}', '', response.message.content).strip()
             except:
                 return response.message.content
 
         if name:
-            print(f"\n[Ejecutando herramienta: {name}]")
+            # DEBUG para el usuario (puedes quitarlo luego)
+            print(f"\n[Ejecutando herramienta: {name} con argumentos: {args}]")
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
-            # El loop continúa para que el modelo genere la respuesta final con el resultado
         else:
-            # Respuesta final limpia de JSON
             return re.sub(r'\{.*\}', '', response.message.content).strip()
 
     return "Se alcanzó el límite de pasos sin una respuesta final."
