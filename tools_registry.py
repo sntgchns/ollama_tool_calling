@@ -12,6 +12,22 @@ GEOMETRIA = GeometriaTools()
 CONVERSOR = ConversorTools()
 DATABASE = DatabaseTools()
 
+# Definición oficial de herramientas para Ollama
+TOOLS = [
+    {'type': 'function', 'function': {'name': 'sumar', 'description': 'Suma dos números (a + b)', 'parameters': {'type': 'object', 'properties': {'a': {'type': 'number'}, 'b': {'type': 'number'}}, 'required': ['a', 'b']}}},
+    {'type': 'function', 'function': {'name': 'restar', 'description': 'Resta dos números (a - b)', 'parameters': {'type': 'object', 'properties': {'a': {'type': 'number'}, 'b': {'type': 'number'}}, 'required': ['a', 'b']}}},
+    {'type': 'function', 'function': {'name': 'multiplicar', 'description': 'Multiplica dos números (a * b)', 'parameters': {'type': 'object', 'properties': {'a': {'type': 'number'}, 'b': {'type': 'number'}}, 'required': ['a', 'b']}}},
+    {'type': 'function', 'function': {'name': 'dividir', 'description': 'Divide dos números (a / b)', 'parameters': {'type': 'object', 'properties': {'a': {'type': 'number'}, 'b': {'type': 'number'}}, 'required': ['a', 'b']}}},
+    {'type': 'function', 'function': {'name': 'potencia', 'description': 'Calcula la potencia de un número (a ^ b)', 'parameters': {'type': 'object', 'properties': {'a': {'type': 'number'}, 'b': {'type': 'number'}}, 'required': ['a', 'b']}}},
+    {'type': 'function', 'function': {'name': 'raiz_cuadrada', 'description': 'Calcula la raíz cuadrada de un número x', 'parameters': {'type': 'object', 'properties': {'x': {'type': 'number'}}, 'required': ['x']}}},
+    {'type': 'function', 'function': {'name': 'convertir_base', 'description': 'Convierte un número entre diferentes bases numéricas (Base 2, 10 o 16)', 'parameters': {'type': 'object', 'properties': {'numero': {'type': 'string'}, 'base_origen': {'type': 'number'}, 'base_destino': {'type': 'number'}}, 'required': ['numero', 'base_origen', 'base_destino']}}},
+    {'type': 'function', 'function': {'name': 'area_cuadrado', 'description': 'Calcula la superficie de un cuadrado dado su lado', 'parameters': {'type': 'object', 'properties': {'lado': {'type': 'number'}}, 'required': ['lado']}}},
+    {'type': 'function', 'function': {'name': 'area_rectangulo', 'description': 'Calcula la superficie de un rectángulo dada su base y altura', 'parameters': {'type': 'object', 'properties': {'base': {'type': 'number'}, 'altura': {'type': 'number'}}, 'required': ['base', 'altura']}}},
+    {'type': 'function', 'function': {'name': 'area_triangulo', 'description': 'Calcula la superficie de un triángulo dada su base y altura', 'parameters': {'type': 'object', 'properties': {'base': {'type': 'number'}, 'altura': {'type': 'number'}}, 'required': ['base', 'altura']}}},
+    {'type': 'function', 'function': {'name': 'area_circulo', 'description': 'Calcula la superficie de un círculo dado su radio', 'parameters': {'type': 'object', 'properties': {'radio': {'type': 'number'}}, 'required': ['radio']}}},
+    {'type': 'function', 'function': {'name': 'consultar_db', 'description': 'Consulta información de un pedido por su ID', 'parameters': {'type': 'object', 'properties': {'id_pedido': {'type': 'string'}}, 'required': ['id_pedido']}}},
+]
+
 # Mapeo directo de herramientas
 TOOL_MAPPING = {
     "sumar": ARITMETICA.sumar,
