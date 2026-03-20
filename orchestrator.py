@@ -44,26 +44,31 @@ def chat_with_ollama(user_input):
             args = tool_call.function.arguments
             messages.append(response.message)
         else:
-            # 2. Fallback para JSON en contenido
+            # 2. Fallback para JSON en contenido (incluso si está mal formado)
             try:
                 content = response.message.content.strip()
                 if '{' in content:
-                    start = content.find('{')
-                    end = content.rfind('}') + 1
-                    tool_data = json.loads(content[start:end])
-                    name = tool_data.get('name')
-                    args = tool_data.get('parameters', tool_data.get('arguments', {}))
-                    if isinstance(args, dict) and 'object' in args:
-                        try: args = json.loads(args['object'])
-                        except: pass
+                    import re
+                    # Intentar extraer el nombre de la función con Regex si el JSON falla
+                    name_match = re.search(r'"name":\s*"([^"]+)"', content)
+                    if name_match:
+                        name = name_match.group(1)
+                        # Intentar extraer argumentos básicos
+                        if '"nombre_archivo":\s*"([^"]+)"' in content:
+                            args = {'nombre_archivo': re.search(r'"nombre_archivo":\s*"([^"]+)"', content).group(1)}
+                        elif '"servicio":\s*"([^"]+)"' in content:
+                            args = {'servicio': re.search(r'"servicio":\s*"([^"]+)"', content).group(1)}
+                        else:
+                            args = {}
                     
-                    # Inyectamos llamada formal para consistencia de la historia
-                    fake_message = {
-                        'role': 'assistant',
-                        'content': content,
-                        'tool_calls': [{'function': {'name': name, 'arguments': args}}]
-                    }
-                    messages.append(fake_message)
+                    if name:
+                        # Inyectamos llamada formal para consistencia
+                        fake_message = {
+                            'role': 'assistant',
+                            'content': content,
+                            'tool_calls': [{'function': {'name': name, 'arguments': args}}]
+                        }
+                        messages.append(fake_message)
                 else:
                     return response.message.content
             except:
