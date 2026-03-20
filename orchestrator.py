@@ -1,8 +1,9 @@
 import ollama
 import json
+import os
 from tools_registry import TOOLS, run_tool
 
-MODEL = "qwen2.5:3b"
+MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
 def chat_with_ollama(user_input):
     messages = [
@@ -18,7 +19,10 @@ def chat_with_ollama(user_input):
         {'role': 'user', 'content': user_input}
     ]
     
-    response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
+    try:
+        response = ollama.chat(model=MODEL, messages=messages, tools=TOOLS)
+    except Exception as e:
+        raise Exception(f"No se pudo conectar con Ollama (Modelo: {MODEL}). Error: {e}")
 
     if response.message.tool_calls:
         messages.append(response.message)
@@ -29,7 +33,10 @@ def chat_with_ollama(user_input):
         result = run_tool(name, args)
         messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
         
-        final_response = ollama.chat(model=MODEL, messages=messages)
-        return final_response.message.content
+        try:
+            final_response = ollama.chat(model=MODEL, messages=messages)
+            return final_response.message.content
+        except Exception as e:
+            raise Exception(f"Error en la respuesta final de Ollama: {e}")
     
     return response.message.content
