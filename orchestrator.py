@@ -1,5 +1,7 @@
 import ollama
+import json
 import os
+import re
 from dotenv import load_dotenv
 from tools_registry import TOOLS, run_tool
 
@@ -25,20 +27,31 @@ def chat_with_ollama(user_input):
             tool_calls_to_process.append((tc.function.name, tc.function.arguments))
         messages.append(response.message)
     else:
-        # Fallback para JSON en contenido
+        # Fallback para JSON en contenido (Robusto con Regex)
         try:
             content = response.message.content.strip()
-            if content.startswith('{'):
-                tool_data = json.loads(content)
-                name = tool_data.get('name')
-                args = tool_data.get('parameters', tool_data.get('arguments', {}))
-                if isinstance(args, dict) and 'object' in args:
-                    try: args = json.loads(args['object'])
-                    except: pass
-                if name:
-                    tool_calls_to_process.append((name, args))
-                    # Simulamos el mensaje del asistente
-                    messages.append({'role': 'assistant', 'content': response.message.content})
+            if '{' in content:
+                # Intentar encontrar múltiples JSONs o llamadas
+                name_match = re.search(r'"name":\s*"([^"]+)"', content)
+                if name_match:
+                    name = name_match.group(1)
+                    # Extracción simple de argumentos (básica para esta rama)
+                    args = {}
+                    # Ejemplo: "a": 5, "b": 10
+                    matches = re.findall(r'"(\w+)":\s*([\d\.]+|"[^"]+")', content)
+                    for k, v in matches:
+                        if k != "name":
+                            args[k] = json.loads(v)
+                    
+                    if name:
+                        tool_calls_to_process.append((name, args))
+                        # Inyectamos mensaje para consistencia
+                        fake_message = {
+                            'role': 'assistant', 
+                            'content': f"Calculando {name}...",
+                            'tool_calls': [{'function': {'name': name, 'arguments': args}}]
+                        }
+                        messages.append(fake_message)
         except:
             pass
 

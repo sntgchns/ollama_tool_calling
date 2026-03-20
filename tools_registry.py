@@ -12,20 +12,20 @@ GEOMETRIA = GeometriaTools()
 CONVERSOR = ConversorTools()
 DATABASE = DatabaseTools()
 
-# Mapeo directo de herramientas para mayor eficiencia
+# Mapeo directo de herramientas (Normalizado para robustez)
 TOOL_MAPPING = {
     "sumar": ARITMETICA.sumar,
     "restar": ARITMETICA.restar,
     "multiplicar": ARITMETICA.multiplicar,
     "dividir": ARITMETICA.dividir,
     "potencia": ARITMETICA.potencia,
-    "raiz_cuadrada": ARITMETICA.raiz_cuadrada,
-    "convertir_base": CONVERSOR.convertir_base,
-    "area_cuadrado": GEOMETRIA.area_cuadrado,
-    "area_rectangulo": GEOMETRIA.area_rectangulo,
-    "area_triangulo": GEOMETRIA.area_triangulo,
-    "area_circulo": GEOMETRIA.area_circulo,
-    "consultar_db": DATABASE.consultar_db,
+    "raizcuadrada": ARITMETICA.raiz_cuadrada,
+    "convertirbase": CONVERSOR.convertir_base,
+    "areacuadrado": GEOMETRIA.area_cuadrado,
+    "arearectangulo": GEOMETRIA.area_rectangulo,
+    "areatriangulo": GEOMETRIA.area_triangulo,
+    "areacirculo": GEOMETRIA.area_circulo,
+    "consultardb": DATABASE.consultar_db,
 }
 
 # Definición de herramientas para Ollama
@@ -55,9 +55,12 @@ def get_tools_tree():
 
 def run_tool(name, args):
     """Ejecuta una herramienta basándose en el nombre de la función."""
-    if name in TOOL_MAPPING:
+    # Normalizamos el nombre (Llama 3.2 a veces omite el guion bajo)
+    name_normalized = name.replace("_", "").lower()
+    
+    if name_normalized in TOOL_MAPPING:
         try:
-            return TOOL_MAPPING[name](**args)
+            return TOOL_MAPPING[name_normalized](**args)
         except Exception as e:
             return {"error": f"Error ejecutando {name}: {str(e)}"}
     return {"error": f"Herramienta '{name}' no encontrada"}
