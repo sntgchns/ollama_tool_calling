@@ -1,6 +1,7 @@
 import ollama
 import json
 import os
+import re
 from dotenv import load_dotenv
 from tools_registry import TOOLS, run_tool
 
@@ -23,7 +24,7 @@ def chat_with_ollama(user_input):
                 "- NO adivines el error. DEBES verificarlo primero.\n"
                 "- NO asumas el servicio. DEBES consultarlo en el manual.\n"
                 "- NO des una respuesta final hasta que hayas completado los 3 pasos.\n"
-                "- Si respondes con un JSON, asegúrate de que sea una llamada a herramienta válida."
+                "- Si necesitas usar una herramienta, envía solo el JSON formal."
             )
         }
     ]
@@ -48,24 +49,22 @@ def chat_with_ollama(user_input):
             try:
                 content = response.message.content.strip()
                 if '{' in content:
-                    import re
-                    # Intentar extraer el nombre de la función con Regex si el JSON falla
+                    # Intentar extraer el nombre de la función con Regex (Raw strings para evitar SyntaxWarning)
                     name_match = re.search(r'"name":\s*"([^"]+)"', content)
                     if name_match:
                         name = name_match.group(1)
-                        # Intentar extraer argumentos básicos
-                        if '"nombre_archivo":\s*"([^"]+)"' in content:
+                        if r'"nombre_archivo":\s*"([^"]+)"' in content:
                             args = {'nombre_archivo': re.search(r'"nombre_archivo":\s*"([^"]+)"', content).group(1)}
-                        elif '"servicio":\s*"([^"]+)"' in content:
+                        elif r'"servicio":\s*"([^"]+)"' in content:
                             args = {'servicio': re.search(r'"servicio":\s*"([^"]+)"', content).group(1)}
                         else:
                             args = {}
                     
                     if name:
-                        # Inyectamos llamada formal para consistencia
+                        # Limpiamos el contenido del mensaje del asistente para evitar confusiones al modelo
                         fake_message = {
                             'role': 'assistant',
-                            'content': content,
+                            'content': f"Llamando a {name}...",
                             'tool_calls': [{'function': {'name': name, 'arguments': args}}]
                         }
                         messages.append(fake_message)
