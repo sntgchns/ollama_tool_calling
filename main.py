@@ -1,12 +1,10 @@
 from orchestrator import chat_with_ollama
+from tools_registry import get_tools_tree
 
 def main():
-    print("--- Ollama Local (Modo Solo Modelo) ---")
-    print("Herramientas Disponibles:")
-    print("└── Ninguna (Razonamiento puro)\n")
-    print("Conocimiento Disponible:")
-    print("└── Interno del Modelo (Pre-entrenamiento)\n")
-    print("Prueba preguntando cualquier cosa. El modelo responderá sin usar herramientas externas.")
+    print("--- Ollama Local (Modo Conocimiento) ---")
+    print(get_tools_tree())
+    print("\nPrueba preguntando: '¿Qué es la descoherencia cuántica?'")
     print("Escribe 'salir' para terminar.\n")
     
     while True:
