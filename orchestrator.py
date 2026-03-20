@@ -17,7 +17,8 @@ def chat_with_ollama(user_input):
                 "Eres un asistente especializado en extraer información de una base de conocimientos técnica.\n"
                 "TU UNICA FUENTE DE VERDAD: La herramienta 'consultar_documento'.\n"
                 "REGLA: Si el usuario pregunta algo técnico, usa la herramienta. NO respondas con tus conocimientos previos.\n"
-                "Una vez que recibas el contenido del documento, resume la información para responder al usuario."
+                "Una vez que recibas el contenido del documento, resume la información para responder al usuario de forma natural.\n"
+                "IMPORTANTE: Envía solo la respuesta final en lenguaje natural, sin bloques JSON."
             )
         },
         {'role': 'user', 'content': user_input}
@@ -59,7 +60,8 @@ def chat_with_ollama(user_input):
                         }
                         messages.append(fake_message)
                 else:
-                    return response.message.content
+                    # Si no hay JSON, es respuesta final (limpiamos posibles residuos)
+                    return re.sub(r'\{.*\}', '', response.message.content).strip()
             except:
                 return response.message.content
 
@@ -68,6 +70,7 @@ def chat_with_ollama(user_input):
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
         else:
-            return response.message.content
+            # Respuesta final limpia de JSON
+            return re.sub(r'\{.*\}', '', response.message.content).strip()
             
     return "Se alcanzó el límite de pasos sin una respuesta final."
