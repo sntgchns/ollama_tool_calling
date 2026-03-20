@@ -14,10 +14,10 @@ def chat_with_ollama(user_input):
         {
             'role': 'system',
             'content': (
-                "Eres un experto en computación cuántica que consulta manuales técnicos.\n"
-                "REGLA: Si te preguntan algo técnico, usa 'consultar_documento'.\n"
-                "Una vez que tengas el contenido, explica el concepto de forma clara basándote en el texto.\n"
-                "NO respondas con JSON, responde con lenguaje natural."
+                "Eres un asistente que responde basándose EXCLUSIVAMENTE en documentos.\n"
+                "REGLA DE ORO: Empieza tu respuesta mencionando el archivo que consultaste.\n"
+                "Ejemplo: 'Basado en el documento computacion_cuantica.md, un qubit es...'\n"
+                "Si la información no está en el documento, di: 'No encontré esa información en el manual'."
             )
         },
         {'role': 'user', 'content': user_input}
@@ -31,14 +31,12 @@ def chat_with_ollama(user_input):
 
         name, args = None, None
         
-        # 1. Intentar obtener llamada formal
         if response.message.tool_calls:
             tool_call = response.message.tool_calls[0]
             name = tool_call.function.name
             args = tool_call.function.arguments
             messages.append(response.message)
         else:
-            # 2. Fallback robusto con Regex
             content = response.message.content.strip()
             if '{' in content and '"name"' in content:
                 try:
@@ -47,28 +45,22 @@ def chat_with_ollama(user_input):
                         name = name_match.group(1)
                         file_match = re.search(r'"nombre_archivo":\s*"([^"]+)"', content)
                         args = {'nombre_archivo': file_match.group(1) if file_match else "computacion_cuantica"}
-                        
-                        fake_message = {
-                            'role': 'assistant',
-                            'content': content,
-                            'tool_calls': [{'function': {'name': name, 'arguments': args}}]
-                        }
+                        fake_message = {'role': 'assistant', 'content': content, 'tool_calls': [{'function': {'name': name, 'arguments': args}}]}
                         messages.append(fake_message)
                 except: pass
             
-            # Si no hay nombre de herramienta detectado, es la respuesta final
             if not name:
-                # Limpiamos posibles residuos de JSON que el modelo a veces deja al final
-                final_answer = re.sub(r'\{.*"name":.*\}', '', response.message.content, flags=re.DOTALL).strip()
-                if not final_answer and i > 0:
-                    # Si el modelo se quedó callado después de la herramienta, le pedimos que hable
-                    messages.append({'role': 'user', 'content': "Por favor, resume la información que encontraste."})
-                    continue
-                return final_answer
+                return re.sub(r'\{.*"name":.*\}', '', response.message.content, flags=re.DOTALL).strip()
 
         if name:
-            print(f"\n[Consultando base de conocimientos: {name}]")
+            print(f"\n[SISTEMA] Leyendo archivo: {args.get('nombre_archivo', 'desconocido')}...")
             result = run_tool(name, args)
+            
+            # Mostramos una pequeña prueba visual de lo que se leyó
+            if isinstance(result, dict) and 'contenido' in result:
+                tamano = len(result['contenido'])
+                print(f"[SISTEMA] ¡Éxito! Se han recuperado {tamano} caracteres de conocimiento real.\n")
+            
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
             
     return "Se alcanzó el límite de pasos sin una respuesta final."
