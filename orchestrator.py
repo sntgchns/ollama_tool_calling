@@ -1,7 +1,10 @@
 import ollama
 import os
+from dotenv import load_dotenv
 
-MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
+load_dotenv()
+
+MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:latest")
 
 def chat_with_ollama(user_input):
     messages = [{'role': 'user', 'content': user_input}]
