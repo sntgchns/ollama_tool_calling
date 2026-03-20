@@ -1,12 +1,10 @@
 from orchestrator import chat_with_ollama
+from tools_registry import get_tools_tree
 
 def main():
-    print("--- Ollama Local (Modo Solo Modelo) ---")
-    print("Herramientas Disponibles:")
-    print("└── Ninguna (Razonamiento puro)\n")
-    print("Conocimiento Disponible:")
-    print("└── Interno del Modelo (Pre-entrenamiento)\n")
-    print("Prueba preguntando cualquier cosa. El modelo responderá sin usar herramientas externas.")
+    print("--- Ollama Local (Modo Algorítmico) ---")
+    print(get_tools_tree())
+    print("\nPrueba preguntando: '¿Cuánto es 123 * 456?' o 'Área de un círculo de radio 5'")
     print("Escribe 'salir' para terminar.\n")
     
     while True:
