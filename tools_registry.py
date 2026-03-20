@@ -21,6 +21,10 @@ def get_tools_tree():
 
 def run_tool(name, args):
     if name == "verificar_estado_servidor": return SISTEMA.verificar_estado_servidor()
-    if name == "consultar_documento": return consultar_documento(**args)
-    if name == "ejecutar_reinicio_servicio": return SISTEMA.ejecutar_reinicio_servicio(**args)
+    if name == "consultar_documento": 
+        nombre_archivo = args.get('nombre_archivo', '') if isinstance(args, dict) else args
+        return consultar_documento(nombre_archivo)
+    if name == "ejecutar_reinicio_servicio": 
+        servicio = args.get('servicio', '') if isinstance(args, dict) else args
+        return SISTEMA.ejecutar_reinicio_servicio(servicio)
     return {"error": "TOOL_NOT_FOUND"}
