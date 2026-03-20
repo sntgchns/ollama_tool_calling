@@ -14,11 +14,12 @@ def chat_with_ollama(user_input):
         {
             'role': 'system',
             'content': (
-                "Eres un asistente especializado en extraer información de una base de conocimientos técnica.\n"
-                "TU UNICA FUENTE DE VERDAD: La herramienta 'consultar_documento'.\n"
-                "REGLA: Si el usuario pregunta algo técnico, usa la herramienta. NO respondas con tus conocimientos previos.\n"
-                "Una vez que recibas el contenido del documento, resume la información para responder al usuario de forma natural.\n"
-                "IMPORTANTE: Envía solo la respuesta final en lenguaje natural, sin bloques JSON."
+                "Estás en el MODO CONOCIMIENTO (Rama: feature/markdown).\n"
+                "Tu propósito educativo es demostrar la 'Recuperación Dinámica de Conocimiento' (RAG).\n\n"
+                "HERRAMIENTA PERMITIDA: Solo 'consultar_documento'.\n"
+                "REGLA: Si el usuario pide cálculos matemáticos o acciones de sistema, explícale que en este "
+                "paso del tutorial solo puedes leer archivos Markdown, y que debe cambiar a 'feature/tools' "
+                "o 'feature/expert' para ver otras funcionalidades."
             )
         },
         {'role': 'user', 'content': user_input}
@@ -39,38 +40,35 @@ def chat_with_ollama(user_input):
             args = tool_call.function.arguments
             messages.append(response.message)
         else:
-            # 2. Fallback para JSON en contenido (Robusto con Regex)
+            # 2. Fallback robusto con Regex
             try:
                 content = response.message.content.strip()
                 if '{' in content:
                     name_match = re.search(r'"name":\s*"([^"]+)"', content)
                     if name_match:
                         name = name_match.group(1)
-                        # Búsqueda de argumentos
-                        if r'"nombre_archivo":\s*"([^"]+)"' in content:
-                            args = {'nombre_archivo': re.search(r'"nombre_archivo":\s*"([^"]+)"', content).group(1)}
-                        else:
-                            args = {}
+                        # Buscamos nombre_archivo en el texto si no hay JSON limpio
+                        file_match = re.search(r'"nombre_archivo":\s*"([^"]+)"', content)
+                        args = {'nombre_archivo': file_match.group(1)} if file_match else {}
                     
                     if name:
                         fake_message = {
                             'role': 'assistant',
-                            'content': f"Consultando {name}...",
+                            'content': f"Intentando ejecutar '{name}'...",
                             'tool_calls': [{'function': {'name': name, 'arguments': args}}]
                         }
                         messages.append(fake_message)
                 else:
-                    # Si no hay JSON, es respuesta final (limpiamos posibles residuos)
                     return re.sub(r'\{.*\}', '', response.message.content).strip()
             except:
                 return response.message.content
 
         if name:
-            print(f"\n[Consultando base de conocimientos: {name}]")
+            # Ejecutamos la herramienta (si no existe, devolverá el error educativo)
             result = run_tool(name, args)
             messages.append({'role': 'tool', 'content': json.dumps(result), 'name': name})
+            # El loop sigue para que el modelo nos dé el mensaje final educativo
         else:
-            # Respuesta final limpia de JSON
             return re.sub(r'\{.*\}', '', response.message.content).strip()
             
     return "Se alcanzó el límite de pasos sin una respuesta final."
